@@ -208,3 +208,7 @@
   background-size: cover;
   margin-left: 10px;
 }
+
+.attachments {
+  display: none;
+}

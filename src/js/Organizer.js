@@ -212,18 +212,16 @@ export default class Organizer {
     }
   }
 
-  async findMessage() {
+  findMessage() {
     this.searcher.addEventListener('input', async () => {
       this.container.innerHTML = '';
       const response = await fetch(`${this.URL}/all`);
       this.messages = await response.json();
-      const found = [];
-      this.messages.forEach((message) => {
-        if (message.value.indexOf(this.searcher.value) > -1) {
-          found.push(message);
-        }
-      });
+      const found = this.messages.filter((message) => message.value === this.searcher.value);
       this.get10(found);
+      if (!this.searcher.value) {
+        this.getAllMessages();
+      }
     });
   }
 
@@ -259,6 +257,10 @@ export default class Organizer {
         const fd = new FormData();
         fd.append('value', new Blob(this.chunks), id);
         fd.append('id', id);
+        fetch(`${this.URL}/upload`, {
+          method: 'POST',
+          body: fd,
+        });
         const isFavorite = false;
         const message = {
           timestamp,
@@ -384,5 +386,10 @@ export default class Organizer {
     const response = await fetch(`${this.URL}/${source}`);
     const file = await response.blob();
     return file;
+  }
+
+  addFile() {
+    this.attachments.addEventListener('click', () => {
+    });
   }
 }
