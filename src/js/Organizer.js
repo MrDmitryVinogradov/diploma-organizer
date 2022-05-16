@@ -16,7 +16,8 @@ export default class Organizer {
     this.files = document.querySelector('.files');
     this.audiorecorder = document.querySelector('.record-audio');
     this.videorecorder = document.querySelector('.record-video');
-    this.attachments = document.querySelector('.attachment');
+    this.attachment = document.querySelector('.attachment');
+    this.attachmentInput = document.querySelector('.attachment-input');
     this.geocheck = document.querySelector('.geo-check');
     this.loader = document.querySelector('.loader');
     this.URL = 'http://localhost:7070';
@@ -31,6 +32,8 @@ export default class Organizer {
     this.getAllMessages();
     this.getFavorites();
     this.findMessage();
+    this.showAllFiles();
+    this.addFile();
     this.audiorecorder.addEventListener('click', () => {
       this.recordAudio();
     });
@@ -87,6 +90,9 @@ export default class Organizer {
           if (ten[i].type === 'video') {
             ten[i].value = `<video heigth = '200' width = '360' controls src = '${source}'> </video>`;
           }
+          if (ten[i].type === 'file') {
+            ten[i].value = `<a href = ${source}> ${ten[i].value} </a>`;
+          }
         }
         const newMessage = createTextMessage(ten[i].value, ten[i].timestamp, ten[i].position,
           ten[i].id);
@@ -107,6 +113,9 @@ export default class Organizer {
           }
           if (messages[i].type === 'video') {
             messages[i].value = `<video heigth = '200' width = '360' controls src = '${source}'> </video>`;
+          }
+          if (messages[i].type === 'file') {
+            messages[i].value = `<a href = ${source}> ${messages[i].value} </a>`;
           }
         }
         const newMessage = createTextMessage(messages[i].value, messages[i].timestamp,
@@ -164,7 +173,7 @@ export default class Organizer {
           newMessage.querySelector('.is-favorite').addEventListener('click', (evt) => this.addToFavorites(evt));
           document.querySelector('.content').appendChild(newMessage);
           newMessage.scrollIntoView();
-        }, 3000);
+        }, 2000);
         this.input.value = '';
       }
     });
@@ -217,8 +226,15 @@ export default class Organizer {
       this.container.innerHTML = '';
       const response = await fetch(`${this.URL}/all`);
       this.messages = await response.json();
-      const found = this.messages.filter((message) => message.value === this.searcher.value);
-      this.get10(found);
+      const found = [];
+      this.messages.forEach((message) => {
+        if (this.searcher.value && message.value.indexOf(this.searcher.value) > -1) {
+          found.push(message);
+        }
+      });
+      if (found) {
+        this.get10(found);
+      }
       if (!this.searcher.value) {
         this.getAllMessages();
       }
@@ -389,7 +405,59 @@ export default class Organizer {
   }
 
   addFile() {
-    this.attachments.addEventListener('click', () => {
+    this.attachment.addEventListener('click', () => {
+      this.attachmentInput.dispatchEvent(new MouseEvent('click'));
+    });
+    this.attachmentInput.addEventListener('change', (evt) => {
+      const files = Array.from(evt.currentTarget.files);
+      if (this.getPosition.checked) {
+        this.getPosition();
+      } else this.position = null;
+      files.forEach((file) => {
+        const value = `<a href = ${URL.createObjectURL(file)}> ${file.name} </a>`;
+        const timestamp = new Date().getTime();
+        const id = uniqid();
+        const fd = new FormData();
+        fd.append('value', file, id);
+        fd.append('id', id);
+        const isFavorite = false;
+        const message = {
+          timestamp,
+          id,
+          isFavorite,
+          value: file.name,
+          position: this.position,
+          type: 'file',
+        };
+        try {
+          this.postData(`${this.URL}/new`, JSON.stringify(message));
+          fetch(`${this.URL}/upload`, {
+            method: 'POST',
+            body: fd,
+          });
+        } catch (e) {
+          return;
+        }
+        setTimeout(() => {
+          const newMessage = createTextMessage(value, timestamp, this.position, id);
+          newMessage.querySelector('.is-favorite').addEventListener('click', (event) => this.addToFavorites(event));
+          document.querySelector('.content').appendChild(newMessage);
+          newMessage.scrollIntoView();
+        }, 2000);
+      });
+    });
+  }
+
+  async showAllFiles() {
+    this.files.addEventListener('click', async () => {
+      this.container.innerHTML = '';
+      const response = await fetch(`${this.URL}/all`);
+      this.messages = await response.json();
+      this.messages = this.messages.filter((message) => message.type === 'file');
+      this.get10(this.messages);
+      this.favorites.style.display = 'none';
+      this.getAll.style.display = 'block';
+      this.container.lastChild.scrollIntoView();
     });
   }
 }
